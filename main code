@@ -1,0 +1,82 @@
+import heapq
+import os
+from typing import List
+
+class ExternalMergeSort:
+    def __init__(self, chunk_size: int = 1000):
+        self.chunk_size = chunk_size
+    
+    def sort_file(self, input_file: str, output_file: str):
+        """Основной метод сортировки"""
+        # Фаза 1: Создание отсортированных чанков
+        temp_files = self._create_sorted_chunks(input_file)
+        
+        # Фаза 2: Слияние чанков
+        self._merge_chunks(temp_files, output_file)
+        
+        # Очистка временных файлов
+        self._cleanup(temp_files)
+    
+    def _create_sorted_chunks(self, input_file: str) -> List[str]:
+        """Создание отсортированных чанков"""
+        temp_files = []
+        chunk = []
+        file_counter = 0
+        
+        with open(input_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                chunk.append(line.strip())
+                if len(chunk) >= self.chunk_size:
+                    chunk.sort()
+                    temp_file = f"temp_{file_counter}.txt"
+                    with open(temp_file, 'w', encoding='utf-8') as tf:
+                        for item in chunk:
+                            tf.write(item + '\n')
+                    temp_files.append(temp_file)
+                    chunk.clear()
+                    file_counter += 1
+        
+        # Последний чанк
+        if chunk:
+            chunk.sort()
+            temp_file = f"temp_{file_counter}.txt"
+            with open(temp_file, 'w', encoding='utf-8') as tf:
+                for item in chunk:
+                    tf.write(item + '\n')
+            temp_files.append(temp_file)
+        
+        return temp_files
+    
+    def _merge_chunks(self, temp_files: List[str], output_file: str):
+        """K-стороннее слияние с использованием min-heap"""
+        heap = []
+        file_handles = []
+        
+        # Инициализация heap
+        for i, temp_file in enumerate(temp_files):
+            with open(temp_file, 'r', encoding='utf-8') as f:
+                first_line = f.readline().strip()
+                if first_line:
+                    heapq.heappush(heap, (first_line, i, 0, f))
+        
+        with open(output_file, 'w', encoding='utf-8') as out:
+            while heap:
+                value, file_idx, line_idx, file_handle = heapq.heappop(heap)
+                out.write(value + '\n')
+                
+                # Читаем следующую строку
+                next_line = file_handle.readline().strip()
+                if next_line:
+                    heapq.heappush(heap, (next_line, file_idx, line_idx + 1, file_handle))
+    
+    def _cleanup(self, temp_files: List[str]):
+        """Удаление временных файлов"""
+        for temp_file in temp_files:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+
+# Пример использования
+if __name__ == "__main__":
+    sorter = ExternalMergeSort(chunk_size=1000)
+    # sorter.sort_file("large_input.txt", "sorted_output.txt")
+print("External Merge Sort готов к работе")
